@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Block Blast</title>
+
+<style>
+body {
+    font-family: "Comic Sans MS", cursive;
+    text-align: center;
+    background: linear-gradient(#e7f5ff, #d0ebff);
+    color: #1c3d5a;
+}
+
+h1 { color: #339af0; }
+
+#instructions {
+    background: #ffffffcc;
+    padding: 10px;
+    margin: 10px auto;
+    width: 320px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: 2px solid #74c0fc;
+}
+
+#game {
+    display: grid;
+    grid-template-columns: repeat(8, 50px);
+    gap: 5px;
+    justify-content: center;
+    margin: 20px;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    background: #d0ebff; /* lighter than blocks */
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.cell:hover {
+    transform: scale(1.05);
+}
+
+#pieces {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.piece {
+    padding: 8px;
+    background: #ffffffaa;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid #74c0fc;
+}
+
+.selected {
+    outline: 3px solid #339af0;
+}
+
+.mini {
+    width: 22px;
+    height: 22px;
+    margin: 2px;
+    border-radius: 50%;
+}
+
+.hidden { visibility: hidden; }
+
+#bunny {
+    font-size: 40px;
+    display: none;
+    animation: hop 0.5s ease;
+    filter: hue-rotate(180deg);
+}
+
+@keyframes hop {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-30px); }
+    100% { transform: translateY(0); }
+}
+</style>
+</head>
+
+<body>
+
+<h1>Block Blast</h1>
+
+<div id="instructions">
+<b>How to Play:</b><br>
+1. Click a block shape below <br>
+2. Hover board to preview placement <br>
+3. Click board to place<br>
+4. Fill rows/columns to clear 
+</div>
+
+<div id="score">Score: 0</div>
+
+<div id="game"></div>
+<div id="pieces"></div>
+
+
+
+<script>
+const gridSize = 8;
+let grid = [];
+let selectedPiece = null;
+
+// darker blues for blocks so they stand out from the light blue background
+const colors = [
+    "#74c0fc", // soft blue
+    "#4dabf7", // medium blue
+    "#339af0", // deeper blue
+    "#228be6", // strong blue
+    "#1c7ed6"  // darker blue
+];
+
+const shapes = [
+    [[1,1,1]],
+    [[1,1],[1,1]],
+    [[1],[1],[1]],
+    [[1,0],[1,1]]
+];
+
+const gameEl = document.getElementById("game");
+const piecesEl = document.getElementById("pieces");
+
+let score = 0;
+
+function randomColor(){
+    return colors[Math.floor(Math.random()*colors.length)];
+}
+
+function createGrid(){
+    grid=[];
+    gameEl.innerHTML="";
+
+    for(let r=0;r<gridSize;r++){
+        let row=[];
+        for(let c=0;c<gridSize;c++){
+            row.push(null);
+
+            let cell=document.createElement("div");
+            cell.className="cell";
+
+            cell.onmouseenter=()=>preview(r,c);
+            cell.onmouseleave=clearPreview;
+            cell.onclick=()=>place(r,c);
+
+            gameEl.appendChild(cell);
+        }
+        grid.push(row);
+    }
+}
+
+function drawGrid(){
+    let cells=document.querySelectorAll(".cell");
+
+    cells.forEach((cell,i)=>{
+        let r=Math.floor(i/gridSize);
+        let c=i%gridSize;
+
+        cell.style.background=grid[r][c] || "#d0ebff"; // background lighter
+    });
+}
+
+function createPiece(shape){
+    let color=randomColor();
+    let div=document.createElement("div");
+    div.className="piece";
+
+    shape.forEach(row=>{
+        let rowEl=document.createElement("div");
+        row.forEach(cell=>{
+            let mini=document.createElement("div");
+            mini.className="mini";
+            if(!cell) mini.classList.add("hidden");
+            else mini.style.background=color;
+            rowEl.appendChild(mini);
+        });
+        div.appendChild(rowEl);
+    });
+
+    div.onclick=()=>{
+        selectedPiece={shape,color};
+        document.querySelectorAll(".piece").forEach(p=>p.classList.remove("selected"));
+        div.classList.add("selected");
+    };
+
+    return div;
+}
+
+function generatePieces(){
+    piecesEl.innerHTML="";
+    for(let i=0;i<3;i++){
+        let shape=shapes[Math.floor(Math.random()*shapes.length)];
+        piecesEl.appendChild(createPiece(shape));
+    }
+}
+
+function canPlace(shape,r,c){
+    for(let i=0;i<shape.length;i++){
+        for(let j=0;j<shape[i].length;j++){
+            if(shape[i][j]){
+                let nr=r+i, nc=c+j;
+                if(nr>=gridSize||nc>=gridSize||grid[nr][nc]) return false;
+            }
+        }
+    }
+    return true;
+}
+
+function preview(r,c){
+    if(!selectedPiece) return;
+
+    let cells=document.querySelectorAll(".cell");
+    clearPreview();
+
+    let valid = canPlace(selectedPiece.shape,r,c);
+
+    selectedPiece.shape.forEach((row,i)=>{
+        row.forEach((cell,j)=>{
+            if(cell){
+                let nr=r+i, nc=c+j;
+                if(nr<gridSize && nc<gridSize){
+                    let index = nr*gridSize+nc;
+                    cells[index].style.background = valid
+                        ? selectedPiece.color + "88"
+                        : "#339af022"; // red-ish transparent preview
+                }
+            }
+        });
+    });
+}
+
+function clearPreview(){
+    drawGrid();
+}
+
+function place(r,c){
+    if(!selectedPiece) return;
+
+    let {shape,color}=selectedPiece;
+
+    if(!canPlace(shape,r,c)) return;
+
+    shape.forEach((row,i)=>{
+        row.forEach((cell,j)=>{
+            if(cell) grid[r+i][c+j]=color;
+        });
+    });
+
+    let cleared = clearLines();
+
+    if(cleared){
+        score+=10;
+        showBunny();
+    }
+
+    document.getElementById("score").innerText="Score: "+score;
+
+    selectedPiece=null;
+    generatePieces();
+    drawGrid();
+}
+
+function clearLines(){
+    let cleared=false;
+
+    for(let r=0;r<gridSize;r++){
+        if(grid[r].every(c=>c)){
+            grid[r].fill(null);
+            cleared=true;
+        }
+    }
+
+    for(let c=0;c<gridSize;c++){
+        let full=true;
+        for(let r=0;r<gridSize;r++){
+            if(!grid[r][c]) full=false;
+        }
+        if(full){
+            for(let r=0;r<gridSize;r++) grid[r][c]=null;
+            cleared=true;
+        }
+    }
+
+    return cleared;
+}
+
+function showBunny(){
+    let bunny=document.getElementById("bunny");
+    bunny.style.display="block";
+    bunny.style.animation="none";
+    void bunny.offsetWidth;
+    bunny.style.animation="hop 0.5s ease";
+}
+
+createGrid();
+generatePieces();
+drawGrid();
+</script>
+
+</body>
+</html>
